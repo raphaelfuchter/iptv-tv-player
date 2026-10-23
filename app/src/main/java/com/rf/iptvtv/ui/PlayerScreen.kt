@@ -36,6 +36,8 @@ import com.rf.iptvtv.model.Channel
 fun PlayerScreen(
     playing: Channel,
     channels: List<Channel>,
+    listOpen: Boolean,
+    onToggleList: () -> Unit,
     onPick: (Channel) -> Unit,
     modifier: Modifier = Modifier,
 ) {
@@ -50,7 +52,6 @@ fun PlayerScreen(
             .build()
             .apply { playWhenReady = true }
     }
-    var showList by remember { mutableStateOf(false) }
     val focusRequester = remember { FocusRequester() }
 
     // Swap the stream whenever the playing channel changes (reuses one player).
@@ -62,11 +63,11 @@ fun PlayerScreen(
     DisposableEffect(Unit) { onDispose { player.release() } }
 
     // Keep focus on the video layer when the overlay is closed, so OK/BACK work.
-    LaunchedEffect(showList) {
-        if (!showList) focusRequester.requestFocus()
+    LaunchedEffect(listOpen) {
+        if (!listOpen) focusRequester.requestFocus()
     }
 
-    BackHandler(enabled = true) { showList = !showList }
+    BackHandler(enabled = true) { onToggleList() }
 
     Box(
         modifier = modifier
@@ -77,7 +78,7 @@ fun PlayerScreen(
                 if (ev.type == KeyEventType.KeyUp &&
                     (ev.key == Key.DirectionCenter || ev.key == Key.Enter)
                 ) {
-                    showList = true
+                    onToggleList()
                     true
                 } else {
                     false
@@ -94,12 +95,12 @@ fun PlayerScreen(
             },
         )
 
-        if (showList) {
+        if (listOpen) {
             ChannelList(
                 channels = channels,
                 playingId = playing.id,
-                onPick = { onPick(it); showList = false },
-                onClose = { showList = false },
+                onPick = onPick,
+                onClose = onToggleList,
             )
         }
     }

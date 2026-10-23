@@ -1,8 +1,14 @@
 package com.rf.iptvtv
 
+import android.content.BroadcastReceiver
+import android.content.Context
+import android.content.Intent
+import android.content.IntentFilter
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
+import androidx.activity.viewModels
+import androidx.core.content.ContextCompat
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -35,16 +41,56 @@ import com.rf.iptvtv.ui.MainViewModel
 import com.rf.iptvtv.ui.PlayerScreen
 
 class MainActivity : ComponentActivity() {
+
+    private val vm: MainViewModel by viewModels()
+    private var commandReceiver: BroadcastReceiver? = null
+
     @OptIn(ExperimentalTvMaterial3Api::class)
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        registerCommandChannel()
         setContent {
             MaterialTheme {
                 Surface(modifier = Modifier.fillMaxSize()) {
-                    App()
+                    App(vm)
                 }
             }
         }
+    }
+
+    /**
+     * PhotoCraft-style control channel: drive every command over adb, e.g.
+     *   adb shell am broadcast -a com.rf.iptvtv.CMD --es cmd next
+     *   adb shell am broadcast -a com.rf.iptvtv.CMD --es cmd play --ei index 5
+     *   adb shell am broadcast -a com.rf.iptvtv.CMD --es cmd list
+     *   adb shell am broadcast -a com.rf.iptvtv.CMD --es cmd load_m3u --es url http://...
+     * Same methods the UI calls — one command registry, two front doors.
+     */
+    private fun registerCommandChannel() {
+        val receiver = object : BroadcastReceiver() {
+            override fun onReceive(context: Context?, intent: Intent?) {
+                when (intent?.getStringExtra("cmd")) {
+                    "play" -> vm.playIndex(intent.getIntExtra("index", 0))
+                    "next" -> vm.next()
+                    "prev" -> vm.prev()
+                    "list" -> vm.toggleList()
+                    "open_list" -> vm.openList()
+                    "close_list" -> vm.closeList()
+                    "load_m3u" -> intent.getStringExtra("url")?.let { vm.loadM3u(it) }
+                    "forget" -> vm.forgetPlaylist()
+                }
+            }
+        }
+        commandReceiver = receiver
+        ContextCompat.registerReceiver(
+            this, receiver, IntentFilter("com.rf.iptvtv.CMD"),
+            ContextCompat.RECEIVER_EXPORTED,
+        )
+    }
+
+    override fun onDestroy() {
+        commandReceiver?.let { runCatching { unregisterReceiver(it) } }
+        super.onDestroy()
     }
 }
 
@@ -58,6 +104,8 @@ private fun App(vm: MainViewModel = viewModel()) {
         playing != null -> PlayerScreen(
             playing = playing,
             channels = state.channels,
+            listOpen = state.listOpen,
+            onToggleList = vm::toggleList,
             onPick = vm::play,
         )
         else -> SetupScreen(

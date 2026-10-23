@@ -15,6 +15,7 @@ data class UiState(
     val loading: Boolean = false,
     val channels: List<Channel> = emptyList(),
     val playing: Channel? = null,
+    val listOpen: Boolean = false,
     val error: String? = null,
 )
 
@@ -61,8 +62,33 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
         }
     }
 
-    /** Switch the live channel. */
-    fun play(channel: Channel) { _state.value = _state.value.copy(playing = channel) }
+    // ---- Command registry: every action routes through here, so the UI and the
+    // ---- debug control channel (CommandReceiver) call the exact same code. ----
+
+    /** Switch the live channel and close the list. */
+    fun play(channel: Channel) {
+        _state.value = _state.value.copy(playing = channel, listOpen = false)
+    }
+
+    fun playIndex(i: Int) {
+        _state.value.channels.getOrNull(i)?.let { play(it) }
+    }
+
+    fun next() = step(+1)
+    fun prev() = step(-1)
+
+    private fun step(delta: Int) {
+        val chs = _state.value.channels
+        val cur = _state.value.playing ?: return
+        val idx = chs.indexOfFirst { it.id == cur.id }
+        if (idx < 0) return
+        val n = ((idx + delta) % chs.size + chs.size) % chs.size
+        _state.value = _state.value.copy(playing = chs[n])
+    }
+
+    fun openList() { _state.value = _state.value.copy(listOpen = true) }
+    fun closeList() { _state.value = _state.value.copy(listOpen = false) }
+    fun toggleList() { _state.value = _state.value.copy(listOpen = !_state.value.listOpen) }
 
     /** Forget the saved playlist and return to setup. */
     fun forgetPlaylist() {
