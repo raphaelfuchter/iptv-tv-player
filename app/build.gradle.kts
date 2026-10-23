@@ -49,11 +49,16 @@ dependencies {
     implementation("androidx.tv:tv-material:1.0.0")
     implementation("androidx.compose.ui:ui")
     implementation("androidx.compose.foundation:foundation")
+    // Text fields: TV Material3 omits them, use standard Material3 for inputs
+    implementation("androidx.compose.material3:material3")
 
     // Media3 (ExoPlayer) — playback + HLS
     implementation("androidx.media3:media3-exoplayer:1.4.1")
     implementation("androidx.media3:media3-exoplayer-hls:1.4.1")
     implementation("androidx.media3:media3-ui:1.4.1")
+
+    // Channel logos (async image loading)
+    implementation("io.coil-kt:coil-compose:2.7.0")
 
     // Networking + JSON (Xtream API, M3U fetch)
     implementation("com.squareup.okhttp3:okhttp:4.12.0")
